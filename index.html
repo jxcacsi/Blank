@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Price History</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f0f2f5;
+            color: #333;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 28px;
+            margin-bottom: 8px;
+            color: #1a1a2e;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 32px;
+            font-size: 16px;
+        }
+
+        .search-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            margin-bottom: 24px;
+        }
+
+        .search-box label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: #444;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .input-row input, .input-row select {
+            padding: 10px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-row input:focus, .input-row select:focus {
+            border-color: #4a6cf7;
+        }
+
+        #ticker {
+            flex: 1;
+            min-width: 120px;
+            text-transform: uppercase;
+        }
+
+        #timeRange {
+            min-width: 150px;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            background: #4a6cf7;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #3554d1;
+        }
+
+        .btn:disabled {
+            background: #a0a0a0;
+            cursor: not-allowed;
+        }
+
+        .btn-download {
+            background: #28a745;
+            font-size: 14px;
+            padding: 8px 18px;
+        }
+
+        .btn-download:hover {
+            background: #218838;
+        }
+
+        .hint {
+            margin-top: 10px;
+            font-size: 13px;
+            color: #888;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .results-header h2 {
+            font-size: 20px;
+            color: #1a1a2e;
+        }
+
+        .results-box {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: none;
+        }
+
+        .message {
+            text-align: center;
+            padding: 20px;
+            font-size: 16px;
+            color: #666;
+        }
+
+        .message.error {
+            color: #dc3545;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th {
+            background: #f8f9fa;
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            color: #555;
+            border-bottom: 2px solid #e9ecef;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            white-space: nowrap;
+        }
+
+        tr:hover {
+            background: #f8f9ff;
+        }
+
+        .price-up {
+            color: #28a745;
+        }
+
+        .price-down {
+            color: #dc3545;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 36px;
+            height: 36px;
+            border: 4px solid #e0e0e0;
+            border-top-color: #4a6cf7;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 600px) {
+            h1 { font-size: 22px; }
+            .input-row { flex-direction: column; }
+            .btn { width: 100%; }
+            td, th { padding: 8px 10px; font-size: 13px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Stock Price History</h1>
+        <p class="subtitle">Look up historical prices for any stock</p>
+
+        <div class="search-box">
+            <label>Enter a stock ticker symbol and choose a time range:</label>
+            <div class="input-row">
+                <input type="text" id="ticker" placeholder="e.g. AAPL" maxlength="10">
+                <select id="timeRange">
+                    <option value="1mo">1 Month</option>
+                    <option value="3mo">3 Months</option>
+                    <option value="6mo">6 Months</option>
+                    <option value="1y" selected>1 Year</option>
+                    <option value="5y">5 Years</option>
+                </select>
+                <button class="btn" id="searchBtn" onclick="fetchPrices()">Get Prices</button>
+            </div>
+            <p class="hint">
+                Try: AAPL (Apple), MSFT (Microsoft), GOOGL (Google), TSLA (Tesla), AMZN (Amazon)
+            </p>
+        </div>
+
+        <div class="results-box" id="resultsBox">
+            <div id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Allow pressing Enter to search
+        document.getElementById("ticker").addEventListener("keydown", function (e) {
+            if (e.key === "Enter") fetchPrices();
+        });
+
+        async function fetchPrices() {
+            const ticker = document.getElementById("ticker").value.trim().toUpperCase();
+            const range = document.getElementById("timeRange").value;
+            const resultsBox = document.getElementById("resultsBox");
+            const resultsContent = document.getElementById("resultsContent");
+            const searchBtn = document.getElementById("searchBtn");
+
+            if (!ticker) {
+                alert("Please enter a stock ticker symbol (e.g. AAPL).");
+                return;
+            }
+
+            // Show loading state
+            resultsBox.style.display = "block";
+            resultsContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p style="margin-top: 12px; color: #666;">Fetching prices for ${ticker}...</p>
+                </div>`;
+            searchBtn.disabled = true;
+
+            try {
+                // Use Yahoo Finance API via a public query endpoint
+                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=1d`;
+
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error(`Ticker "${ticker}" was not found. Please check the symbol and try again.`);
+                    }
+                    throw new Error(`Could not fetch data (error ${response.status}). Please try again later.`);
+                }
+
+                const data = await response.json();
+
+                if (data.chart.error) {
+                    throw new Error(data.chart.error.description || "Unknown error from data provider.");
+                }
+
+                const result = data.chart.result[0];
+                const timestamps = result.timestamp;
+                const quotes = result.indicators.quote[0];
+                const currency = result.meta.currency || "USD";
+                const name = result.meta.shortName || result.meta.symbol || ticker;
+
+                if (!timestamps || timestamps.length === 0) {
+                    throw new Error(`No price data available for "${ticker}".`);
+                }
+
+                // Build table rows
+                const rows = [];
+                for (let i = 0; i < timestamps.length; i++) {
+                    const open = quotes.open[i];
+                    const high = quotes.high[i];
+                    const low = quotes.low[i];
+                    const close = quotes.close[i];
+                    const volume = quotes.volume[i];
+
+                    // Skip days with missing data (e.g. holidays)
+                    if (close === null || close === undefined) continue;
+
+                    const date = new Date(timestamps[i] * 1000);
+                    const dateStr = date.toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "short",
+                        day: "numeric",
+                    });
+
+                    const change = i > 0 && quotes.close[i - 1] != null
+                        ? close - quotes.close[i - 1]
+                        : null;
+                    const changePct = change !== null && quotes.close[i - 1] !== 0
+                        ? (change / quotes.close[i - 1]) * 100
+                        : null;
+
+                    rows.push({
+                        date: dateStr,
+                        rawDate: date,
+                        open: open != null ? open.toFixed(2) : "—",
+                        high: high != null ? high.toFixed(2) : "—",
+                        low: low != null ? low.toFixed(2) : "—",
+                        close: close.toFixed(2),
+                        volume: volume != null ? volume.toLocaleString() : "—",
+                        change,
+                        changePct,
+                    });
+                }
+
+                // Most recent dates first
+                rows.reverse();
+
+                // Build HTML
+                let tableHTML = `
+                    <div class="results-header">
+                        <h2>${escapeHTML(name)} (${escapeHTML(ticker)}) — ${currency}</h2>
+                        <button class="btn btn-download" onclick="downloadCSV()">Download CSV</button>
+                    </div>
+                    <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Open</th>
+                                <th>High</th>
+                                <th>Low</th>
+                                <th>Close</th>
+                                <th>Change</th>
+                                <th>Volume</th>
+                            </tr>
+                        </thead>
+                        <tbody>`;
+
+                for (const row of rows) {
+                    let changeCell = "—";
+                    if (row.change !== null) {
+                        const sign = row.change >= 0 ? "+" : "";
+                        const cssClass = row.change >= 0 ? "price-up" : "price-down";
+                        changeCell = `<span class="${cssClass}">${sign}${row.change.toFixed(2)} (${sign}${row.changePct.toFixed(2)}%)</span>`;
+                    }
+
+                    tableHTML += `
+                        <tr>
+                            <td>${row.date}</td>
+                            <td>${row.open}</td>
+                            <td>${row.high}</td>
+                            <td>${row.low}</td>
+                            <td>${row.close}</td>
+                            <td>${changeCell}</td>
+                            <td>${row.volume}</td>
+                        </tr>`;
+                }
+
+                tableHTML += `</tbody></table></div>`;
+
+                resultsContent.innerHTML = tableHTML;
+
+                // Store data globally so the CSV download button can use it
+                window._priceData = { ticker, name, currency, rows };
+
+            } catch (err) {
+                resultsContent.innerHTML = `<p class="message error">${escapeHTML(err.message)}</p>`;
+            } finally {
+                searchBtn.disabled = false;
+            }
+        }
+
+        function downloadCSV() {
+            const { ticker, rows } = window._priceData;
+            if (!rows || rows.length === 0) return;
+
+            let csv = "Date,Open,High,Low,Close,Volume\n";
+            for (const row of rows) {
+                csv += `${row.date},${row.open},${row.high},${row.low},${row.close},${row.volume}\n`;
+            }
+
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${ticker}_prices.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement("div");
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

@@ -274,10 +274,11 @@
             searchBtn.disabled = true;
 
             try {
-                // Use Yahoo Finance API via a public query endpoint
-                const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=1d`;
+                // Use Yahoo Finance API via a CORS proxy so it works in browsers
+                const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=1d`;
+                const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
 
-                const response = await fetch(url);
+                const response = await fetch(proxyUrl);
 
                 if (!response.ok) {
                     if (response.status === 404) {

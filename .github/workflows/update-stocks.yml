@@ -1,0 +1,57 @@
+name: Update stock prices
+
+# Refreshes stock_prices.xlsx on a schedule and commits any changes back.
+on:
+  schedule:
+    # 22:30 UTC on weekdays — after the US market close (21:00 UTC).
+    - cron: "30 22 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      tickers:
+        description: "Space/comma-separated tickers (blank = repo default)"
+        required: false
+        default: ""
+      range:
+        description: "Yahoo range to fetch (e.g. 5d, 1mo, 1y)"
+        required: false
+        default: "5d"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-stocks
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Update workbook
+        env:
+          TICKERS: ${{ github.event.inputs.tickers }}
+          PRICE_RANGE: ${{ github.event.inputs.range || '5d' }}
+        run: python3 update_stocks.py
+
+      - name: Commit changes
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- stock_prices.xlsx; then
+            echo "No changes to stock_prices.xlsx — nothing to commit."
+            exit 0
+          fi
+          git add stock_prices.xlsx
+          git commit -m "Update stock prices ($(date -u +%Y-%m-%d))"
+          git push
